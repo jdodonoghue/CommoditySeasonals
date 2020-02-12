@@ -1,0 +1,444 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Seasonals</title>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    <script src="scripts/lookup.js"></script>
+    <script src="scripts/Seasonals.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .axis text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 12pt;
+        }
+
+        .axis .label {
+            font-size: 18pt;
+        }
+
+        path {
+            stroke: steelblue;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: grey;
+            stroke-width: 1;
+            shape-rendering: crispEdges;
+        }
+
+        .legend {
+            font-size: 16px;
+            font-weight: bold;
+            text-anchor: middle;
+        }
+
+        .commodity {
+            width: 200px;
+            height: 20px;
+        }
+    </style>
+
+    <script>
+
+        function getData(ext) {
+            //var url = "http://localhost/TS/Seasonals.html#" + ext;
+            //var url = "https://jdodonoghue.github.io/TradeStation/Seasonals_TradingApp.html#" + ext;
+            //alert(window.location.href);
+            //window.location.href = url;
+            //console.log(args_individual);
+            //args = args_individual;
+            //retriveData(args);
+            d3.json("/data/individual.json", function(data) {
+                //console.log(data);
+                args = data;
+                retriveData(args);
+            });
+        }
+
+        var newData = [];
+        var yColumn = "";
+        var key = "";
+
+        function retriveData(args) {
+            var symbolRoot = document.getElementById("selCommodity").value;
+
+            var outData = [];
+            newData = [];
+
+            //outData = JSON.parse(args);
+
+            outData = args;
+
+            if (selType.value == "IndividualContracts") {
+
+                if (selChartType.value == "Percentage") {
+                    var first = 0;
+                    outData.forEach(function (d, i) {
+                        if (d.weekid == 1) {
+                            first = d.close;
+                        }
+                        d.percentage = (d.close - first) / first;
+
+                        newData.push(d);
+                    });
+
+                    yColumn = "percentage";
+                    key = "label";
+                } else {
+                    newData = outData;
+                    yColumn = "close";
+                    key = "label";
+                }
+
+                render(newData, 600, 400, yColumn, key);
+
+                var individualArray = JSON.parse(individual);
+
+                individualArray.forEach(function (d) {
+                    if (symbolRoot.substr((symbolRoot.length - 1), 1) == d.symbolroot) {
+                        var dt = d.beginmonth + "/" + d.beginday + " to " + d.endmonth + "/" + d.endday;
+                        document.getElementById("divMsg").innerHTML = "Date Range: " + dt;
+                        return false;
+                    }
+                });
+            }
+
+            if (selType.value == "ContinuousContracts") {
+
+                if (selChartType.value == "Percentage") {
+                    var first = 0;
+                    outData.forEach(function (d, i) {
+                        if (d.weekid == 1) {
+                            first = d.close;
+                        }
+                        d.percentage = (d.close - first) / first;
+
+                        newData.push(d);
+                    });
+
+                    yColumn = "percentage";
+                    key = "label";
+                } else {
+                    newData = outData;
+                    yColumn = "close";
+                    key = "label";
+                }
+
+                render(newData, 600, 400, yColumn, key);
+
+                var continuousArray = JSON.parse(continuous);
+
+                continuousArray.forEach(function (d) {
+                    var dt = d.beginmonth + "/" + d.beginday + " to " + d.endmonth + "/" + d.endday;
+                    document.getElementById("divMsg").innerHTML = "Date Range: " + dt;
+                    return false;
+                });
+            }
+
+            if (selType.value == "Spreads") {
+
+                var newSpreadData = [];
+
+                var spreadByDate = d3.nest()
+                    .key(function (d) { return d.label; })
+                    .key(function (d) { return d.weekid; })
+                    .rollup(function (v) {
+                        return {
+                            weekid: v[0].weekid,
+                            month: v[0].month,
+                            symbol: v[0].label,
+                            close: v[0].close - v[1].close
+                        };
+                    })
+                    .entries(outData);
+
+                spreadByDate.forEach(function (d) {
+                    d.values.forEach(function (d) {
+                        newSpreadData.push(d.values);
+                    });
+                });
+
+                if (selChartType.value == "Percentage") {
+                    var first = 0;
+                    newSpreadData.forEach(function (d, i) {
+                        if (d.weekid == 1) {
+                            first = d.close;
+                        }
+                        d.percentage = (d.close - first) / first;
+
+                        newData.push(d);
+                    });
+
+                    yColumn = "percentage";
+                    key = "symbol";
+                } else {
+                    newData = newSpreadData;
+                    yColumn = "close";
+                    key = "symbol";
+                }
+                //document.getElementById("debug").value = newData;
+                render(newData, 600, 400, yColumn, key);
+
+                var spreadsArray = JSON.parse(spreads);
+                spreadsArray.forEach(function (d) {
+                    if (symbolRoot.substr((symbolRoot.length - 1), 1) == d.symbolroot1.substr((symbolRoot.length - 1), 1)) {
+                        var dt = d.beginmonth + "/" + d.beginday + " to " + d.endmonth + "/" + d.endday;
+                        document.getElementById("divMsg").innerHTML = "Date Range: " + dt;
+                        return false;
+                    }
+                });
+            }
+        }
+
+        function render(data, cw, ch, yColumn, key) {
+
+            if (data.length === 0) return;
+
+            var cw = document.documentElement.clientWidth;
+            var ch = document.documentElement.clientHeight;
+
+            //document.getElementById("debug").value = cw + " " + ch;
+
+            var outerWidth = cw - 200;
+            var outerHeight = ch - 200;
+
+            if (outerWidth < 600) {
+                outerWidth = 600;
+            }
+            if (outerHeight < 400) {
+                outerHeight = 400;
+            }
+
+            //document.getElementById("debug").value = outerWidth + " " + outerHeight;
+
+            d3.select("#divChart").select("svg").remove();
+
+            data.forEach(function (d) {
+                d.month = d.month;
+                d.weekid = +d.weekid;
+                d.close = +d.close;
+                d.percentage = +d.percentage;
+            });
+
+            // Set the dimensions of the canvas / graph
+            var margin = { left: 80, top: 5, right: 70, bottom: 130 };
+
+            var innerWidth = outerWidth - margin.left - margin.right;
+            var innerHeight = outerHeight - margin.top - margin.bottom;
+
+            var xAxisLabelText = "Month";
+            var xAxisLabelOffset = 50;
+
+            var x1AxisLabelText = "Week Id";
+            var x1AxisLabelOffset = 50;
+
+            var yAxisLabelOffset = 60;
+            yAxisLabelText = yColumn;
+
+            var xColumn = "month";
+            var x1Column = "weekid";
+
+            var colorColumn = "symbol";
+            var lineColumn = colorColumn;
+
+            var legendRectSize = 18;
+            var legendSpacing = 4;
+
+            // Set the ranges
+            var x = d3.scale.ordinal().rangeRoundBands([0, innerWidth], .5);
+            var x1 = d3.scale.linear().range([0, innerWidth]);
+            var y = d3.scale.linear().range([innerHeight, 0]);
+
+            // Define the axes
+            var xAxis = d3.svg.axis().scale(x)
+                .orient("bottom").ticks(20);
+
+            var xAxis1 = d3.svg.axis().scale(x1)
+                .orient("bottom").ticks(20);
+
+            var yAxis = d3.svg.axis().scale(y)
+                .orient("left").ticks(10);
+
+            var priceline = d3.svg.line()
+                .x(function (d) { return x1(d.weekid); })
+                .y(function (d) { return y(d[yColumn]); });
+
+            // Adds the svg canvas
+            var svg = d3.select("#divChart")
+                .append("svg")
+                .attr("class", "chart1")
+                .attr("width", outerWidth)
+                .attr("height", outerHeight)
+                .append("g")
+                .attr("transform",
+                    "translate(" + margin.left + "," + margin.top + ")");
+
+            var ymin = d3.min(data, function (d) { return d[yColumn]; });// - 50;
+            var ymax = d3.max(data, function (d) { return d[yColumn]; });// + 50;
+
+            x.domain(data.map(function (d) { return d.month; }));
+            x1.domain(d3.extent(data, function (d) { return d["weekid"]; }));
+
+            var yRangePercent = (ymax - ymin) * 0.05;
+            y.domain([ymin - yRangePercent, ymax + yRangePercent]);
+
+            // Add the X Axis
+            var xAxisG = svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + innerHeight + ")")
+                //.attr("transform", "translate(0, 0)")
+                .call(xAxis);
+
+            var xAxisLabel = svg.append("text")
+                .style("text-anchor", "middle")
+                .attr("transform", "translate(" + (innerWidth / 2) + "," + (innerHeight + xAxisLabelOffset) + ")")
+                .attr("class", "label")
+                .text(xAxisLabelText);
+
+            // Add the Y Axis
+            var yAxisG = svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+
+            var yAxisLabel = svg.append("text")
+                .style("text-anchor", "middle")
+                .attr("transform", "translate(-" + yAxisLabelOffset + "," + (innerHeight / 2) + ") rotate(-90)")
+                .attr("class", "label")
+                .text(yAxisLabelText);
+
+            var dataNest = d3.nest()
+                .key(function (d) { return d[key]; })
+                .entries(data);
+
+            var colorScale = d3.scale.category10();
+
+            var legendSpace = innerWidth / dataNest.length; // spacing for legend
+
+            // Loop through each symbol / key
+            dataNest.forEach(function (d, i) {
+
+                svg.append("path")
+                    .attr("class", "line")
+                    .attr('stroke-width', 2)
+                    .attr("id", 'tag' + d.key.replace(/\s+/g, '')) // assign ID
+                    .style("stroke", function () {
+                        return d.color = colorScale(d.key);
+                    })
+                    .attr("d", priceline(d.values));
+
+                // Add the Legend
+                svg.append("text")
+                    .attr("x", (legendSpace / 2) + i * legendSpace)  // space legend
+                    .attr("y", innerHeight + (margin.bottom / 2) + 5)
+                    .attr("class", "legend")    // style the legend
+                    .style("cursor", "pointer")
+                    .style("fill", function () { // Add the colours dynamically
+                        return d.colorScale = colorScale(d.key);
+                    })
+                    .on("click", function () {
+                        // Determine if current line is visible
+                        var active = d.active ? false : true,
+                            newOpacity = active ? 0 : 1;
+                        // Hide or show the elements based on the ID
+                        d3.select("#tag" + d.key.replace(/\s+/g, ''))
+                            .transition().duration(100)
+                            .style("opacity", newOpacity);
+                        // Update whether or not the elements are active
+                        d.active = active;
+                    })
+                    .text(d.key);
+
+            });
+
+        }
+
+        function addOption(obj, text, value) {
+            var newOption = new Option(text, value);
+            var selLength = obj.length;
+            obj.options[selLength] = newOption;
+        }
+
+        function deleteOptions(obj) {
+            for (var i = obj.length - 1; i >= 0; i--) {
+                obj.remove(obj.length - 1);
+            }
+        }
+
+
+        function displayWindowSize() {
+
+            // Get width and height of the window excluding scrollbars
+            var w = document.documentElement.clientWidth;
+            var h = document.documentElement.clientHeight;
+
+            render(newData, w, h, yColumn, key);
+        }
+
+        // Attaching the event listener function to window's resize event
+        window.addEventListener("resize", displayWindowSize);
+
+        // Calling the function for the first time
+        displayWindowSize();
+
+    </script>
+
+</head>
+<body>
+    <div style="margin: 20px " class="container text-center">
+        <h3>Seasonals</h3>
+        <div id="Filter">
+            <select id="selType" onchange="chooseType();">
+                <option value="IndividualContracts">Individual Contracts</option>
+                <option value="Spreads">Spreads</option>
+                <option value="ContinuousContracts">Continuous Contracts</option>
+            </select>
+            <select id="selCommodity" class="commodity" onchange="chooseCommodity();"></select>
+            <select id="selChartType" style="display:inline;visibility:visible" onchange="chooseChartType();">
+                <option value="Standard">Standard Chart</option>
+                <option value="Percentage">Percentage Chart</option>
+            </select>
+            <br /><br />
+            <div id="divMsg"></div>
+            <br />
+            <div id="divYears"></div>
+            
+        </div>
+        <br />
+
+        <div id="divChart" style="width:600px">
+
+        </div>
+        <textarea id="debug" style="display:none" cols="50" rows="10"></textarea>
+        
+        <script>
+            
+            (function() {
+               loadCommodities();
+               
+               //d3.json("http://127.0.0.1:5500/data/individual.json", function(error, data) {
+                    //if (error) throw error;
+                    //console.log(data);
+                    // format the data
+                    //data.forEach(function(d) {
+                    //    console.log(d);
+                    //});
+                     
+                //});
+                
+            })();
+
+
+            
+            
+        </script>
+    </div>
+</body>
+</html>
