@@ -11,7 +11,7 @@ function chooseCommodity() {
     d3.select("#divYears").html("");
     d3.select("#divChart").select("svg").remove();
 
-    if (selType.value == "IndividualContracts") {
+    if (selType.value == "Individual") {
         if (selCommodity.value != "0") {
             getYears(selType.value, selCommodity.value);
         }
@@ -21,7 +21,7 @@ function chooseCommodity() {
         getYears(selType.value, selCommodity.value);
     }
 
-    if (selType.value == "ContinuousContracts") {
+    if (selType.value == "Continuous") {
         getYears(selType.value, selCommodity.value);
     }
 }
@@ -41,7 +41,7 @@ function loadCommodities() {
     var selCommidity = document.getElementById("selCommodity");
     deleteOptions(selCommidity);
 
-    if (selType.value == "IndividualContracts") {
+    if (selType.value == "Individual") {
         var indsymArray = JSON.parse(individualsymbols);
         addOption(selCommidity, "Select", "0");
         indsymArray.forEach(function (d) {
@@ -55,7 +55,7 @@ function loadCommodities() {
             addOption(selCommidity, d.symbol1.longDesc, d.symbol1.short);
         });
     }
-    if (selType.value == "ContinuousContracts") {
+    if (selType.value == "Continuous") {
         var contsymArray = JSON.parse(continuoussymbols);
         addOption(selCommidity, "Select", "0");
         contsymArray.forEach(function (d) {
@@ -83,7 +83,8 @@ function getYears(selTypeValue, symbolRoot) {
         newInput.name = "yearcheck";
         newInput.type = "checkbox";
         newInput.value = shortyear;
-        newInput.checked = true;
+        
+        //newInput.checked = true;
 
         newInput.addEventListener("click", handleYearClick);
 
@@ -96,9 +97,12 @@ function getYears(selTypeValue, symbolRoot) {
 
         if (longyear > yearStart) {
             newInput.checked = true;
+            newInput.disabled = false;
         }
         else {
             newInput.checked = false;
+            newInput.disabled = true;
+            newInput.class = "readonly";
         }
 
         symbolList.push(symbolRoot + d.shortyear);
@@ -122,7 +126,7 @@ function buildYearList() {
 
 function buildSymbolList() {
     d3.select("#divChart").select("svg").remove();
-    if (selType.value == "IndividualContracts") {
+    if (selType.value == "Individual") {
         buildIndividualURL();
     }
 
@@ -130,7 +134,7 @@ function buildSymbolList() {
         buildSpreadsURL();
     }
 
-    if (selType.value == "ContinuousContracts") {
+    if (selType.value == "Continuous") {
         buildContinuousContractsURL();
     }
 }

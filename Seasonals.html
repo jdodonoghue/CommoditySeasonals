@@ -44,22 +44,88 @@
             width: 200px;
             height: 20px;
         }
+
+        input.readonly {
+            opacity : .50;
+            filter  : alpha(opacity=50); /* IE<9 */
+            cursor  : default;
+        }
     </style>
 
     <script>
 
         function getData(ext) {
-            //var url = "http://localhost/TS/Seasonals.html#" + ext;
-            //var url = "https://jdodonoghue.github.io/TradeStation/Seasonals_TradingApp.html#" + ext;
-            //alert(window.location.href);
-            //window.location.href = url;
-            //console.log(args_individual);
-            //args = args_individual;
-            //retriveData(args);
-            d3.json("/data/individual.json", function(data) {
+            //console.log(ext);
+            var symbolRoot = "";
+            var symbolRoot2 = "";
+            var extarray = ext.split(',');
+            //console.clear();
+            var symbollist = [];
+            extarray.forEach(function (d, i) {
+                if (i == 0){return;}
+                //console.log(d)
+                var comm = d.split('|');
+                var symbol = comm[0];
+                var label =  comm[1];
+                var begindate =  comm[2];
+                var enddate =  comm[3];
+                
+                //console.log(label);
+                if (selType.value == "Individual"){
+                    symbollist.push(label);
+                    if (i == 1){
+                        symbolRoot = symbol.substr(0, symbol.length - 2);
+                        
+                    }
+                }
+                if (selType.value == "Continuous"){
+                    symbollist.push(label);
+                    if (i == 1){
+                        symbolRoot = symbol.substr(0, symbol.length);
+                    }
+                }
+                if (selType.value == "Spreads"){
+                    symbollist.push(symbol);
+                    if (i == 1){
+                        symbolRoot = symbol.substr(0, symbol.length - 2);
+                    }
+                    if (i == 2){
+                        symbolRoot2 = symbol.substr(0, symbol.length - 2);
+                        symbolRoot = symbolRoot + "-" + symbolRoot2;
+                    }
+                    //console.log(symbolRoot);
+                }
+            });
+            //console.log(symbollist);
+            
+            if (symbollist.length < 1){
+                return;
+            } 
+            var fileName = "/data/" + selType.value + symbolRoot + ".json";
+            //console.log(fileName);       
+            d3.json(fileName, function(data) {
                 //console.log(data);
-                args = data;
-                retriveData(args);
+                var data1 = [];
+                data.forEach(function (d, i) {
+                    symbollist.forEach(function (v, i) {
+                        if (selType.value == "Individual"){
+                            if (d.symbol == v){
+                                data1.push(d);
+                            }  
+                        }
+                        if (selType.value == "Spreads"){
+                            if (d.symbol == v){
+                                data1.push(d);
+                            }  
+                        }
+                        if (selType.value == "Continuous"){
+                            if (d.label == v){
+                                data1.push(d);
+                            }  
+                        }
+                    });
+                });
+                retriveData(data1);
             });
         }
 
@@ -67,17 +133,14 @@
         var yColumn = "";
         var key = "";
 
-        function retriveData(args) {
+        function retriveData(outData) {
             var symbolRoot = document.getElementById("selCommodity").value;
-
-            var outData = [];
+            //console.log(args);
+            //var outData = [];
             newData = [];
+            //outData = args;
 
-            //outData = JSON.parse(args);
-
-            outData = args;
-
-            if (selType.value == "IndividualContracts") {
+            if (selType.value == "Individual") {
 
                 if (selChartType.value == "Percentage") {
                     var first = 0;
@@ -111,7 +174,7 @@
                 });
             }
 
-            if (selType.value == "ContinuousContracts") {
+            if (selType.value == "Continuous") {
 
                 if (selChartType.value == "Percentage") {
                     var first = 0;
@@ -396,9 +459,9 @@
         <h3>Seasonals</h3>
         <div id="Filter">
             <select id="selType" onchange="chooseType();">
-                <option value="IndividualContracts">Individual Contracts</option>
+                <option value="Individual">Individual Contracts</option>
                 <option value="Spreads">Spreads</option>
-                <option value="ContinuousContracts">Continuous Contracts</option>
+                <option value="Continuous">Continuous Contracts</option>
             </select>
             <select id="selCommodity" class="commodity" onchange="chooseCommodity();"></select>
             <select id="selChartType" style="display:inline;visibility:visible" onchange="chooseChartType();">
